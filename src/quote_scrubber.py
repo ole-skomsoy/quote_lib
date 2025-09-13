@@ -3,28 +3,25 @@ import time
 import sqlite3
 import hashlib, re
 
-def get_quote():
-    quote = requests.get('https://zenquotes.io/api/random').json()[0]
-    if quote['a'] == 'zenquotes.io':
-        print('Too many requests...')
-        return
-    print(quote)
-    return quote
+def get_quotes():
+    quotes = requests.get('https://zenquotes.io/api/quotes').json()
+    return quotes
     
-def store_quote(quote):
+def store_quotes(quotes):
     connection = sqlite3.connect("quotes.db")
     cursor = connection.cursor()
     
-    if quote_exists(quote, cursor):
-        print('quote already exists', quote)
-        return
-    
-    qid = make_quote_id(quote)
-    cursor.execute("""
-    INSERT OR IGNORE INTO quotes (id, quote, author)
-    VALUES (?, ?, ?)
-    """, (qid, quote['q'], quote['a']))
-    
+    for quote in quotes:
+        if quote_exists(quote, cursor):
+            print('quote already exists', quote)
+            return
+        
+        qid = make_quote_id(quote)
+        cursor.execute("""
+        INSERT OR IGNORE INTO quotes (id, quote, author)
+        VALUES (?, ?, ?)
+        """, (qid, quote['q'], quote['a']))
+        
     connection.commit()
     connection.close()
 
@@ -69,9 +66,7 @@ def normalize(s):
 def main():
     init_db()
     while True:
-        quote = get_quote()
-        if (quote): store_quote(quote)
-        time.sleep(10)
-        # time.sleep(6) # 5 per 30-second period
-    
+        quotes = get_quotes()
+        if (quotes): store_quotes(quotes)
+        time.sleep(50)
 main()
