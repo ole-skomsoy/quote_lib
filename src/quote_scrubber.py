@@ -3,6 +3,8 @@ import time
 import sqlite3
 import hashlib, re
 
+
+
 def get_quotes():
     quotes = requests.get('https://zenquotes.io/api/quotes').json()
     return quotes
@@ -14,7 +16,7 @@ def store_quotes(quotes):
     for quote in quotes:
         if quote_exists(quote, cursor):
             print('quote already exists', quote)
-            return
+            continue
         
         qid = make_quote_id(quote)
         cursor.execute("""
