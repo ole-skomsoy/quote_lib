@@ -142,29 +142,3 @@ def random_quote():
             raise HTTPException(status_code=404, detail="No quotes available")
         return row_to_out(row)
 
-@app.get("/quotes", response_model=list[QuoteOut])
-def list_quotes(
-    q: Optional[str] = Query(None, description="Search in quote or author"),
-    author: Optional[str] = Query(None, description="Filter by author"),
-    limit: int = Query(20, ge=1, le=200),
-    offset: int = Query(0, ge=0),
-):
-    where, params = [], []
-    if q:
-        where.append("(quote LIKE ? OR author LIKE ?)")
-        params += [f"%{q}%", f"%{q}%"]
-    if author:
-        where.append("author LIKE ?")
-        params.append(f"%{author}%")
-    where_sql = "WHERE " + " AND ".join(where) if where else ""
-    with connect() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            f"""SELECT id, quote, author, added_at
-                FROM quotes {where_sql}
-                ORDER BY datetime(added_at) DESC
-                LIMIT ? OFFSET ?""",
-            params + [limit, offset],
-        )
-        rows = cur.fetchall()
-    return [row_to_out(r) for r in rows]
