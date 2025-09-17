@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 DB_PATH = os.getenv("QUOTES_DB", "quotes.db")
-POLL_INTERVAL_SEC = 50  # adjust if needed (e.g., 6.1 for 5/30s)
+POLL_INTERVAL_SEC = 50 
 
 # ---------- DB helpers ----------
 def connect():
@@ -49,7 +49,7 @@ def make_quote_id(q: Dict[str, Any]) -> str:
 # ---------- Fetch/store ----------
 def get_quotes() -> List[Dict[str, Any]]:
     try:
-        r = requests.get("https://zenquotes.io/api/quotes", timeout=10)
+        r = requests.get("https://zenquotes.io/api/quotes", timeout=30)
         r.raise_for_status()
         data = r.json()
         return data if isinstance(data, list) else []
@@ -58,9 +58,9 @@ def get_quotes() -> List[Dict[str, Any]]:
         return []
 
 def store_quotes(quotes: List[Dict[str, Any]]) -> int:
-    if not quotes:
-        return 0
+    if not quotes: return 0
     inserted = 0
+    print('>>> Storing quotes');
     with connect() as conn:
         cur = conn.cursor()
         for q in quotes:
@@ -75,7 +75,14 @@ def store_quotes(quotes: List[Dict[str, Any]]) -> int:
             if cur.rowcount == 1:
                 inserted += 1
         conn.commit()
+    print('>>> Done storing quotes');
     return inserted
+
+def print_total_count():
+    with connect() as conn:
+        cur = conn.cursor()
+        (count,) = cur.execute("SELECT count(*) from quotes").fetchone()
+        print(f'>>> Total: {count}')
 
 # ---------- API models ----------
 class QuoteOut(BaseModel):
@@ -94,11 +101,16 @@ def fetch_loop(stop_event: threading.Event):
     init_db()
     while not stop_event.is_set():
         try:
+            print('>>> Getting quotes');
             added = store_quotes(get_quotes())
             if added:
                 print(f"Inserted {added} new quotes.")
         except Exception as e:
             print("Fetcher error:", e)
+        finally:
+            print_total_count()
+            print('========================================')
+            
         stop_event.wait(POLL_INTERVAL_SEC)
 
 # ---------- Lifespan (modern startup/shutdown) ----------
